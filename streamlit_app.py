@@ -4,7 +4,7 @@ import numpy as np
 from pathlib import Path
 
 st.set_page_config(
-    page_title="Review Quality & Relevancy App",
+    page_title="TikCheck App",
     layout="wide",
     page_icon="📝"
 )
@@ -18,66 +18,44 @@ def get_data():
 
 df = get_data()
 
-# --- Load model outputs ---
-rule_based_df = pd.read_csv('rule_based.csv')
-dnn_df = pd.read_csv('dnn.csv')
-import pandas as pd
-
-# Make sure both DataFrames have consistent column names
-# Suppose the original label columns are 'label' and predicted columns are 'pred_rule' / 'pred_dnn'
-
-# Rename columns in rule-based df
-rule_based_df = rule_based_df.rename(columns={
-    'pred_rule': 'pred_rule'    # predicted by rule-based model
-})
-
-# Rename columns in DNN df
-dnn_df = dnn_df.rename(columns={
-    'pred_dnn': 'pred_dnn'      # predicted by DNN
-})
-
-# Merge on review_id
-merged = pd.merge(rule_based_df, dnn_df, on='review_id', suffixes=('_rule', '_dnn'))
-
-# Columns for class probabilities
-classes = ["ads", "irrelevant", "rant", "relevant", "spam"]
-
-# Compute weighted final scores
-w_rule = 0.4
-w_dnn = 0.6
-for cls in classes:
-    merged[f"{cls}_final"] = w_rule * merged[f"{cls}_rule"] + w_dnn * merged[f"{cls}_dnn"]
-
-# Case 1: If predictions agree → keep that label
-merged["final_label"] = merged.apply(
-    lambda row: row["pred_rule"] if row["pred_rule"] == row["pred_dnn"] else None, axis=1
-)
-
-# Case 2: If predictions differ → pick max weighted score
-mask_disagree = merged["final_label"].isna()
-merged.loc[mask_disagree, "final_label"] = merged.loc[mask_disagree, [f"{cls}_final" for cls in classes]].idxmax(axis=1)
-merged["final_label"] = merged["final_label"].str.replace("_final", "")
 
 # Now final DataFrame with true label included
-final = merged[["review_id", "pred_rule", "pred_dnn", "final_label", "true_label_rule"]]
+final = pd.read_csv("final_predicted_on_test.csv")
+merged = df.merge(final, on="review_id", how="right")
 # --- Streamlit UI ---
-st.title("📝 Google Location Reviews Quality Checker")
+logo_path = Path(__file__).parent / "tiktok_logo.png"
+st.image(logo_path, width=100)
+import base64
+from pathlib import Path
+
+badge_path = Path(__file__).parent / "tikcheck.jpg"
+with open(badge_path, "rb") as f:
+    data = f.read()
+encoded = base64.b64encode(data).decode()
+
+st.markdown(f"""
+<div style="display:flex; align-items:center; justify-content:center;gap:1px;">
+    <img src="data:image/png;base64,{encoded}" width="300">
+</div>
+""", unsafe_allow_html=True)
+
+
 st.markdown(
     """
     ### Introduction
     Online reviews play a crucial role in shaping public perception of local businesses.  
     This app helps **assess review quality & relevancy** using ML/NLP methods.  
-    Explore reviews for different businesses and see predicted labels.
+    Explore reviews for different businesses and see our predicted labels.
     """
 )
 ''
 
 # Business dropdown
-business_list = df["business_name"].dropna().unique()
+business_list = merged["business_name"].dropna().unique()
 selected_business = st.selectbox("🏢 Select a business to explore:", sorted(business_list))
 
 # Filter reviews for the chosen business
-filtered_df = df[df["business_name"] == selected_business]
+filtered_df = merged[merged["business_name"] == selected_business]
 ''
 
 st.subheader(f"📊 Reviews for: **{selected_business}**")
@@ -102,21 +80,25 @@ if "business_desc" in df.columns:
     # Display bolded
     st.markdown(f"**Description:** {desc_text}")
 
-# ✅ Merge with final predictions on review_id
-filtered_with_preds = filtered_df.merge(final, on="review_id", how="inner")
 
 # Display reviews + predictions
 
 ''
 
-for _, row in filtered_with_preds.iterrows():
+for _, row in filtered_df.iterrows():
+    # Set background color based on label
+    if row['final_label'] == "relevant":
+        bg_color = "#d4f7dc"  # light green
+    else:
+        bg_color = "#f1f3f6"  # default gray
+
     st.markdown(
         f"""
         <div style="
             border-radius: 15px;
             padding: 12px 18px;
             margin: 8px 0;
-            background-color: #f1f3f6;
+            background-color: {bg_color};
             box-shadow: 0px 1px 3px rgba(0,0,0,0.1);
             max-width: 700px;">
             <b>⭐ {row['rating']}</b> - This review is classified as <i>{row['final_label']}</i><br>
