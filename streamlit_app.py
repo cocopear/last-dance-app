@@ -58,7 +58,7 @@ selected_business = st.selectbox("🏢 Select a business to explore:", sorted(bu
 filtered_df = merged[merged["business_name"] == selected_business]
 ''
 
-st.subheader(f"📊 Reviews for: **{selected_business}**")
+st.subheader(f"Reviews for: **{selected_business}**")
 st.markdown(f"**Total Reviews:** {len(filtered_df)}")
 
 # Show business description
