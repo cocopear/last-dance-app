@@ -12,7 +12,7 @@ st.set_page_config(
 @st.cache_data
 def get_data():
     """Grab main review data from CSV file with caching."""
-    DATA_FILENAME = Path(__file__).parent / 'cleaned_dataset.csv'
+    DATA_FILENAME = Path(__file__).parent / 'cleaned_dataset (1).csv'
     df = pd.read_csv(DATA_FILENAME)
     return df
 
@@ -21,7 +21,7 @@ df = get_data()
 
 # Now final DataFrame with true label included
 final = pd.read_csv("final_predicted_on_test.csv")
-merged = df.merge(final, on="review_id", how="right")
+merged = df.merge(final, on="review_id", how="inner")
 # --- Streamlit UI ---
 logo_path = Path(__file__).parent / "tiktok_logo.png"
 st.image(logo_path, width=100)
